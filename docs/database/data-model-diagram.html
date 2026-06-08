@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FraudVault Data Model</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface-hover: #222636;
+    --border: #2a2e3d;
+    --border-active: #14b8a6;
+    --text: #e2e8f0;
+    --text-dim: #8892a4;
+    --text-bright: #f8fafc;
+    --teal: #14b8a6;
+    --teal-dim: rgba(20, 184, 166, 0.15);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59, 130, 246, 0.15);
+    --purple: #a855f7;
+    --purple-dim: rgba(168, 85, 247, 0.15);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245, 158, 11, 0.15);
+    --red: #ef4444;
+    --red-dim: rgba(239, 68, 68, 0.15);
+    --green: #22c55e;
+    --green-dim: rgba(34, 197, 94, 0.15);
+    --orange: #f97316;
+    --orange-dim: rgba(249, 115, 22, 0.15);
+    --pink: #ec4899;
+    --pink-dim: rgba(236, 72, 153, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(15, 17, 23, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  #header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--teal);
+    letter-spacing: -0.02em;
+  }
+
+  #header .subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  #header .controls {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  #header button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+
+  #header button:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-active);
+  }
+
+  #header button.active {
+    background: var(--teal-dim);
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+
+  #search-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  #search-box:focus {
+    border-color: var(--teal);
+  }
+
+  #search-box::placeholder { color: var(--text-dim); }
+
+  #canvas-wrapper {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    overflow: hidden;
+    cursor: grab;
+  }
+
+  #canvas-wrapper:active { cursor: grabbing; }
+
+  #canvas {
+    position: absolute;
+    transform-origin: 0 0;
+  }
+
+  svg#connections {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .table-card {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-width: 240px;
+    max-width: 320px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    transition: border-color 0.2s, box-shadow 0.2s, opacity 0.3s;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .table-card:hover {
+    border-color: var(--border-active);
+    box-shadow: 0 4px 32px rgba(20, 184, 166, 0.15);
+  }
+
+  .table-card.highlighted {
+    border-color: var(--teal);
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.3);
+  }
+
+  .table-card.dimmed {
+    opacity: 0.2;
+  }
+
+  .table-card .card-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 10px 10px 0 0;
+  }
+
+  .table-card .card-header .icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .table-card .card-header .table-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-bright);
+    letter-spacing: -0.01em;
+  }
+
+  .table-card .card-header .row-badge {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--surface-hover);
+    color: var(--text-dim);
+  }
+
+  .table-card .card-body {
+    padding: 8px 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, padding 0.3s;
+  }
+
+  .table-card.expanded .card-body {
+    max-height: 600px;
+    padding: 8px 0;
+  }
+
+  .table-card .col-row {
+    padding: 3px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    transition: background 0.1s;
+  }
+
+  .table-card .col-row:hover {
+    background: var(--surface-hover);
+  }
+
+  .col-row .col-icon {
+    font-size: 10px;
+    width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .col-row .col-name {
+    color: var(--text);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 11px;
+  }
+
+  .col-row .col-type {
+    margin-left: auto;
+    color: var(--text-dim);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  .col-row.pk .col-icon { color: var(--amber); }
+  .col-row.fk .col-icon { color: var(--blue); }
+  .col-row.idx .col-icon { color: var(--purple); }
+  .col-row.normal .col-icon { color: var(--text-dim); }
+
+  .card-footer {
+    padding: 6px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text-dim);
+    display: none;
+  }
+
+  .table-card.expanded .card-footer {
+    display: block;
+  }
+
+  /* Side panel */
+  #side-panel {
+    position: fixed;
+    top: 52px;
+    right: 0;
+    width: 360px;
+    bottom: 0;
+    background: rgba(15, 17, 23, 0.95);
+    backdrop-filter: blur(12px);
+    border-left: 1px solid var(--border);
+    z-index: 90;
+    transform: translateX(100%);
+    transition: transform 0.25s ease-out;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  #side-panel.open { transform: translateX(0); }
+
+  #side-panel h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--teal);
+    margin-bottom: 4px;
+  }
+
+  #side-panel .panel-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+
+  #side-panel .section {
+    margin-bottom: 16px;
+  }
+
+  #side-panel .section h3 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+
+  #side-panel .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(42, 46, 61, 0.5);
+  }
+
+  #side-panel .detail-row .label { color: var(--text-dim); }
+  #side-panel .detail-row .value { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+  #side-panel .col-detail {
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  #side-panel .col-detail .col-d-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #side-panel .col-detail .col-d-type {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  #side-panel .col-detail .col-d-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    font-style: italic;
+  }
+
+  #side-panel .rel-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  #side-panel .rel-item:hover { border-color: var(--teal); }
+  #side-panel .rel-item .arrow { color: var(--teal); }
+
+  #close-panel {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+  }
+
+  /* Legend */
+  #legend {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 80;
+    background: rgba(26, 29, 39, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+  }
+
+  #legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #legend .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  /* Minimap */
+  #minimap {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    width: 200px;
+    height: 140px;
+    z-index: 80;
+    background: rgba(26, 29, 39, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  #minimap canvas { width: 100%; height: 100%; }
+
+  #minimap .viewport-rect {
+    position: absolute;
+    border: 1.5px solid var(--teal);
+    background: rgba(20, 184, 166, 0.08);
+    pointer-events: none;
+  }
+
+  /* Zoom indicator */
+  #zoom-indicator {
+    position: fixed;
+    bottom: 64px;
+    right: 24px;
+    z-index: 80;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* Filter pills */
+  .filter-pills {
+    display: flex;
+    gap: 4px;
+  }
+
+  .filter-pill {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.15s;
+  }
+
+  .filter-pill:hover { border-color: var(--text-dim); }
+  .filter-pill.active { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+
+  /* Data flow overlay */
+  #data-flow-overlay {
+    position: fixed;
+    top: 52px; left: 0; right: 0; bottom: 0;
+    z-index: 85;
+    background: rgba(15, 17, 23, 0.88);
+    backdrop-filter: blur(4px);
+    display: none;
+    padding: 40px;
+    overflow-y: auto;
+  }
+
+  #data-flow-overlay.visible { display: flex; flex-direction: column; align-items: center; }
+
+  .flow-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 24px;
+    min-width: 400px;
+    max-width: 600px;
+    text-align: center;
+    position: relative;
+  }
+
+  .flow-step .step-num {
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    background: var(--teal);
+    color: var(--bg);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .flow-step h4 { color: var(--teal); font-size: 14px; margin-bottom: 4px; }
+  .flow-step p { font-size: 12px; color: var(--text-dim); }
+  .flow-step .tables-involved { margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+  .flow-step .tables-involved span {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--surface-hover);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .flow-arrow {
+    width: 2px;
+    height: 32px;
+    background: var(--teal);
+    position: relative;
+  }
+
+  .flow-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: -4px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--teal);
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 20px;
+    margin-left: 20px;
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-item .stat-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--teal);
+  }
+
+  .stat-item .stat-label {
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>FraudVault</h1>
+  <span class="subtitle">Interactive Data Model &mdash; PostgreSQL 16</span>
+  <div class="stats-bar">
+    <div class="stat-item"><div class="stat-val">25</div><div class="stat-label">Tables</div></div>
+    <div class="stat-item"><div class="stat-val">11</div><div class="stat-label">Enums</div></div>
+    <div class="stat-item"><div class="stat-val">105</div><div class="stat-label">Indexes</div></div>
+  </div>
+  <div class="controls">
+    <input type="text" id="search-box" placeholder="Search tables or columns..." />
+    <div class="filter-pills">
+      <button class="filter-pill active" data-group="all">All</button>
+      <button class="filter-pill" data-group="core">Core</button>
+      <button class="filter-pill" data-group="analysis">Analysis</button>
+      <button class="filter-pill" data-group="intel">Intel</button>
+      <button class="filter-pill" data-group="detection">Detection</button>
+      <button class="filter-pill" data-group="clustering">Clustering</button>
+      <button class="filter-pill" data-group="sandbox">Sandbox</button>
+    </div>
+    <button id="btn-data-flow">Data Flow</button>
+    <button id="btn-reset-view">Reset View</button>
+  </div>
+</div>
+
+<div id="canvas-wrapper">
+  <div id="canvas">
+    <svg id="connections"></svg>
+  </div>
+</div>
+
+<div id="side-panel">
+  <button id="close-panel">&times;</button>
+  <div id="panel-content"></div>
+</div>
+
+<div id="legend">
+  <div class="legend-item"><div class="dot" style="background:var(--teal)"></div> Core</div>
+  <div class="legend-item"><div class="dot" style="background:var(--blue)"></div> Analysis</div>
+  <div class="legend-item"><div class="dot" style="background:var(--purple)"></div> Intel</div>
+  <div class="legend-item"><div class="dot" style="background:var(--amber)"></div> Detection</div>
+  <div class="legend-item"><div class="dot" style="background:var(--red)"></div> Clustering</div>
+  <div class="legend-item"><div class="dot" style="background:var(--green)"></div> Sandbox</div>
+  <div class="legend-item"><div class="dot" style="background:var(--text-dim)"></div> Support</div>
+  <div class="legend-item" style="margin-left:12px;">
+    <span style="color:var(--amber)">&#9670;</span> PK
+    <span style="color:var(--blue);margin-left:6px;">&#8594;</span> FK
+    <span style="color:var(--text-dim);margin-left:6px;">&#9679;</span> Column
+  </div>
+</div>
+
+<div id="minimap">
+  <canvas id="minimap-canvas"></canvas>
+  <div class="viewport-rect" id="minimap-viewport"></div>
+</div>
+
+<div id="zoom-indicator">100%</div>
+
+<div id="data-flow-overlay"></div>
+
+<script>
+// ── Schema Definition ─────────────────────────────────────────────────────
+const TABLES = [
+  {
+    name: 'users', group: 'core', color: 'teal', comment: 'Platform user accounts with RBAC and MFA support',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'email', type: 'varchar(255)', unique: true, desc: 'Login identifier' },
+      { name: 'username', type: 'varchar(128)', unique: true },
+      { name: 'display_name', type: 'varchar(256)' },
+      { name: 'password_hash', type: 'varchar(512)' },
+      { name: 'mfa_secret', type: 'varchar(256)' },
+      { name: 'mfa_enabled', type: 'boolean', desc: 'TOTP MFA flag' },
+      { name: 'role', type: 'user_role', desc: 'viewer | analyst | admin | super_admin' },
+      { name: 'status', type: 'user_status', desc: 'active | disabled | locked' },
+      { name: 'failed_login_attempts', type: 'integer', desc: 'Legacy (lockout via Redis INCR)' },
+      { name: 'locked_until', type: 'timestamptz' },
+      { name: 'last_login_at', type: 'timestamptz' },
+      { name: 'password_changed_at', type: 'timestamptz' },
+      { name: 'force_password_change', type: 'boolean' },
+      { name: 'created_at', type: 'timestamptz' },
+      { name: 'updated_at', type: 'timestamptz' },
+    ],
+    pos: { x: 80, y: 120 }
+  },
+  {
+    name: 'sessions', group: 'core', color: 'teal', comment: 'Active user sessions with expiry tracking',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'user_id', type: 'uuid', fk: 'users' },
+      { name: 'token_hash', type: 'varchar(512)', unique: true },
+      { name: 'ip_address', type: 'inet' },
+      { name: 'user_agent', type: 'text' },
+      { name: 'expires_at', type: 'timestamptz' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 80, y: 530 }
+  },
+  {
+    name: 'api_keys', group: 'core', color: 'teal', comment: 'API keys for programmatic access with granular permissions',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'user_id', type: 'uuid', fk: 'users' },
+      { name: 'name', type: 'varchar(256)' },
+      { name: 'key_hash', type: 'varchar(512)', unique: true },
+      { name: 'permissions', type: 'jsonb' },
+      { name: 'last_used_at', type: 'timestamptz' },
+      { name: 'expires_at', type: 'timestamptz' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 80, y: 790 }
+  },
+  {
+    name: 'audit_log', group: 'core', color: 'teal', comment: 'Immutable audit trail (UPDATE/DELETE trigger-blocked)',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'user_id', type: 'uuid', fk: 'users', desc: 'ON DELETE SET NULL' },
+      { name: 'action', type: 'varchar(128)' },
+      { name: 'resource_type', type: 'varchar(128)' },
+      { name: 'resource_id', type: 'varchar(256)' },
+      { name: 'details', type: 'jsonb' },
+      { name: 'ip_address', type: 'inet' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 80, y: 1070 }
+  },
+  {
+    name: 'submissions', group: 'core', color: 'teal', comment: 'Malware samples, URLs, and containers submitted for analysis',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'user_id', type: 'uuid', fk: 'users', desc: 'ON DELETE RESTRICT' },
+      { name: 'filename', type: 'varchar(1024)' },
+      { name: 'file_size', type: 'bigint' },
+      { name: 'file_type', type: 'varchar(256)' },
+      { name: 'mime_type', type: 'varchar(256)' },
+      { name: 'md5', type: 'char(32)' },
+      { name: 'sha1', type: 'char(40)' },
+      { name: 'sha256', type: 'char(64)' },
+      { name: 'sha512', type: 'char(128)' },
+      { name: 'tlsh', type: 'varchar(128)' },
+      { name: 'ssdeep', type: 'varchar(256)' },
+      { name: 'submission_type', type: 'submission_type', desc: 'file | url | email | container' },
+      { name: 'source_url', type: 'text' },
+      { name: 'status', type: 'submission_status' },
+      { name: 'threat_score', type: 'smallint', desc: '0-100, set by verdict engine' },
+      { name: 'threat_level', type: 'threat_level', desc: 'informational..critical' },
+      { name: 'assigned_analyst_id', type: 'uuid', fk: 'users' },
+      { name: 'created_at', type: 'timestamptz' },
+      { name: 'updated_at', type: 'timestamptz' },
+    ],
+    pos: { x: 500, y: 120 }
+  },
+  {
+    name: 'submission_tags', group: 'core', color: 'teal', comment: 'Freeform tags for submission categorization',
+    columns: [
+      { name: 'submission_id', type: 'uuid', pk: true, fk: 'submissions' },
+      { name: 'tag', type: 'varchar(128)', pk: true },
+    ],
+    pos: { x: 500, y: 680 }
+  },
+  {
+    name: 'submission_notes', group: 'core', color: 'teal', comment: 'Analyst notes attached to submissions',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'user_id', type: 'uuid', fk: 'users' },
+      { name: 'content', type: 'text' },
+      { name: 'created_at', type: 'timestamptz' },
+      { name: 'updated_at', type: 'timestamptz' },
+    ],
+    pos: { x: 500, y: 850 }
+  },
+  {
+    name: 'analysis_jobs', group: 'analysis', color: 'blue', comment: 'Individual analysis tasks per submission',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'job_type', type: 'analysis_job_type', desc: 'static | dynamic | threat_intel | yara | network | memory' },
+      { name: 'status', type: 'analysis_job_status', desc: 'pending | running | completed | failed | timeout' },
+      { name: 'worker_id', type: 'varchar(256)' },
+      { name: 'started_at', type: 'timestamptz' },
+      { name: 'completed_at', type: 'timestamptz' },
+      { name: 'error_message', type: 'text' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 940, y: 80 }
+  },
+  {
+    name: 'static_analysis_results', group: 'analysis', color: 'blue', comment: 'PE, ELF, document, and script parsing results',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions', unique: true },
+      { name: 'file_metadata', type: 'jsonb', desc: 'File type, magic, packer info' },
+      { name: 'strings', type: 'jsonb', desc: 'Extracted strings array' },
+      { name: 'entropy_data', type: 'jsonb', desc: 'Overall + per-section entropy' },
+      { name: 'pe_analysis', type: 'jsonb', desc: 'Imports, exports, sections' },
+      { name: 'elf_analysis', type: 'jsonb' },
+      { name: 'office_analysis', type: 'jsonb', desc: 'Macros, OLE objects' },
+      { name: 'pdf_analysis', type: 'jsonb' },
+      { name: 'script_analysis', type: 'jsonb' },
+      { name: 'container_analysis', type: 'jsonb' },
+      { name: 'certificates', type: 'jsonb', desc: 'Digital signatures' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 940, y: 380 }
+  },
+  {
+    name: 'dynamic_analysis_results', group: 'analysis', color: 'blue', comment: 'Behavioral results from sandbox detonation',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'sandbox_id', type: 'uuid', fk: 'sandbox_environments' },
+      { name: 'processes', type: 'jsonb', desc: 'Process tree, command lines' },
+      { name: 'file_activity', type: 'jsonb', desc: 'Can be 30MB+ (excluded from API)' },
+      { name: 'registry_activity', type: 'jsonb' },
+      { name: 'network_activity', type: 'jsonb' },
+      { name: 'memory_activity', type: 'jsonb' },
+      { name: 'services', type: 'jsonb' },
+      { name: 'scheduled_tasks', type: 'jsonb' },
+      { name: 'user_activity', type: 'jsonb' },
+      { name: 'screenshots', type: 'jsonb' },
+      { name: 'duration_seconds', type: 'integer' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 940, y: 740 }
+  },
+  {
+    name: 'network_captures', group: 'analysis', color: 'blue', comment: 'Network traffic from dynamic analysis',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'dns_queries', type: 'jsonb' },
+      { name: 'http_requests', type: 'jsonb' },
+      { name: 'tls_connections', type: 'jsonb' },
+      { name: 'connections', type: 'jsonb' },
+      { name: 'pcap_path', type: 'varchar(1024)' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 1360, y: 80 }
+  },
+  {
+    name: 'memory_analysis_results', group: 'analysis', color: 'blue', comment: 'Memory forensics from sandbox sessions',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'process_dumps', type: 'jsonb' },
+      { name: 'injected_modules', type: 'jsonb' },
+      { name: 'suspicious_regions', type: 'jsonb' },
+      { name: 'extracted_strings', type: 'jsonb' },
+      { name: 'extracted_iocs', type: 'jsonb' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 1360, y: 380 }
+  },
+  {
+    name: 'threat_intel_results', group: 'intel', color: 'purple', comment: 'VT, CVE, SBOM vuln, config extraction results',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'provider', type: 'varchar(128)', desc: 'virustotal, cve-lookup, sbom-vuln, etc.' },
+      { name: 'verdict', type: 'varchar(64)', desc: 'malicious | clean | suspicious' },
+      { name: 'detection_count', type: 'integer' },
+      { name: 'total_engines', type: 'integer' },
+      { name: 'malware_family', type: 'varchar(256)' },
+      { name: 'threat_actors', type: 'jsonb' },
+      { name: 'campaigns', type: 'jsonb' },
+      { name: 'first_seen', type: 'timestamptz' },
+      { name: 'last_seen', type: 'timestamptz' },
+      { name: 'raw_response', type: 'jsonb' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 1360, y: 680 }
+  },
+  {
+    name: 'iocs', group: 'intel', color: 'purple', comment: 'Indicators of compromise extracted from analysis',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'type', type: 'ioc_type', desc: 'domain | url | ip | hash_* | mutex | ...' },
+      { name: 'value', type: 'text', desc: 'max 4096 chars' },
+      { name: 'context', type: 'text' },
+      { name: 'confidence', type: 'smallint', desc: '0-100' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 1780, y: 80 }
+  },
+  {
+    name: 'ioc_correlations', group: 'intel', color: 'purple', comment: 'Cross-submission IOC correlations',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'ioc_id', type: 'uuid', fk: 'iocs' },
+      { name: 'related_submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'correlation_type', type: 'varchar(128)' },
+      { name: 'confidence', type: 'smallint' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 1780, y: 380 }
+  },
+  {
+    name: 'attack_techniques', group: 'detection', color: 'amber', comment: 'MITRE ATT&CK technique mappings',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'tactic_id', type: 'varchar(32)', desc: 'Kill chain phase' },
+      { name: 'technique_id', type: 'varchar(32)', desc: 'e.g. T1059' },
+      { name: 'sub_technique_id', type: 'varchar(32)' },
+      { name: 'evidence', type: 'jsonb' },
+      { name: 'confidence', type: 'smallint' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 1780, y: 630 }
+  },
+  {
+    name: 'generated_rules', group: 'detection', color: 'amber', comment: 'Auto-generated Sigma/Suricata/Snort/YARA rules',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'rule_type', type: 'generated_rule_type', desc: 'sigma | suricata | snort | yara' },
+      { name: 'rule_content', type: 'text' },
+      { name: 'description', type: 'text' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 1780, y: 920 }
+  },
+  {
+    name: 'yara_rules', group: 'detection', color: 'amber', comment: '20,000+ rules from 4 GitHub sources + custom',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'name', type: 'varchar(256)', unique: true },
+      { name: 'description', type: 'text' },
+      { name: 'content', type: 'text' },
+      { name: 'category', type: 'varchar(128)' },
+      { name: 'author', type: 'varchar(256)' },
+      { name: 'version', type: 'integer' },
+      { name: 'is_active', type: 'boolean' },
+      { name: 'performance_ms', type: 'integer' },
+      { name: 'match_count', type: 'bigint' },
+      { name: 'created_at', type: 'timestamptz' },
+      { name: 'updated_at', type: 'timestamptz' },
+    ],
+    pos: { x: 2180, y: 80 }
+  },
+  {
+    name: 'yara_scan_results', group: 'detection', color: 'amber', comment: 'YARA scan matches linking rules to submissions',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'rule_id', type: 'uuid', fk: 'yara_rules' },
+      { name: 'matched', type: 'boolean' },
+      { name: 'match_details', type: 'jsonb' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 2180, y: 420 }
+  },
+  {
+    name: 'detection_results', group: 'detection', color: 'amber', comment: 'Detection engine correlation output',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions', unique: true },
+      { name: 'score_breakdown', type: 'jsonb' },
+      { name: 'sigma_rules', type: 'jsonb' },
+      { name: 'suricata_rules', type: 'jsonb' },
+      { name: 'snort_rules', type: 'jsonb' },
+      { name: 'yara_recommendations', type: 'jsonb' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 2180, y: 660 }
+  },
+  {
+    name: 'malware_families', group: 'clustering', color: 'red', comment: 'Known malware family classifications',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'name', type: 'varchar(256)', unique: true },
+      { name: 'description', type: 'text' },
+      { name: 'first_seen', type: 'timestamptz' },
+      { name: 'last_seen', type: 'timestamptz' },
+      { name: 'sample_count', type: 'bigint' },
+      { name: 'created_at', type: 'timestamptz' },
+      { name: 'updated_at', type: 'timestamptz' },
+    ],
+    pos: { x: 2180, y: 940 }
+  },
+  {
+    name: 'family_memberships', group: 'clustering', color: 'red', comment: 'Maps submissions to malware families',
+    columns: [
+      { name: 'submission_id', type: 'uuid', pk: true, fk: 'submissions' },
+      { name: 'family_id', type: 'uuid', pk: true, fk: 'malware_families' },
+      { name: 'confidence', type: 'smallint', desc: '0-100' },
+      { name: 'clustering_method', type: 'varchar(128)' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 2540, y: 80 }
+  },
+  {
+    name: 'behavioral_clusters', group: 'clustering', color: 'red', comment: 'Behavioral similarity clusters from dynamic analysis',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'cluster_vector', type: 'jsonb' },
+      { name: 'techniques', type: 'jsonb' },
+      { name: 'network_patterns', type: 'jsonb' },
+      { name: 'persistence_methods', type: 'jsonb' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 2540, y: 380 }
+  },
+  {
+    name: 'sandbox_environments', group: 'sandbox', color: 'green', comment: 'Managed sandbox containers for detonation',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'name', type: 'varchar(256)', unique: true },
+      { name: 'os_type', type: 'varchar(64)' },
+      { name: 'os_version', type: 'varchar(128)' },
+      { name: 'status', type: 'sandbox_status', desc: 'available | in_use | provisioning | destroying | error' },
+      { name: 'vm_id', type: 'varchar(256)' },
+      { name: 'snapshot_id', type: 'varchar(256)' },
+      { name: 'last_used_at', type: 'timestamptz' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 2540, y: 620 }
+  },
+  {
+    name: 'detonation_sessions', group: 'sandbox', color: 'green', comment: 'Individual sandbox detonation runs',
+    columns: [
+      { name: 'id', type: 'uuid', pk: true },
+      { name: 'submission_id', type: 'uuid', fk: 'submissions' },
+      { name: 'sandbox_id', type: 'uuid', fk: 'sandbox_environments' },
+      { name: 'internet_mode', type: 'internet_mode', desc: 'isolated | simulated | controlled' },
+      { name: 'started_at', type: 'timestamptz' },
+      { name: 'ended_at', type: 'timestamptz' },
+      { name: 'status', type: 'analysis_job_status' },
+      { name: 'created_at', type: 'timestamptz' },
+    ],
+    pos: { x: 2540, y: 920 }
+  },
+  {
+    name: 'schema_migrations', group: 'support', color: 'text-dim', comment: 'Migration version tracking',
+    columns: [
+      { name: 'version', type: 'integer', pk: true },
+      { name: 'name', type: 'varchar(256)' },
+      { name: 'applied_at', type: 'timestamptz' },
+    ],
+    pos: { x: 80, y: 1380 }
+  },
+];
+
+const RELATIONSHIPS = [
+  { from: 'sessions', fromCol: 'user_id', to: 'users', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'api_keys', fromCol: 'user_id', to: 'users', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'audit_log', fromCol: 'user_id', to: 'users', toCol: 'id', type: 'many-to-one', onDelete: 'SET NULL' },
+  { from: 'submissions', fromCol: 'user_id', to: 'users', toCol: 'id', type: 'many-to-one', onDelete: 'RESTRICT' },
+  { from: 'submissions', fromCol: 'assigned_analyst_id', to: 'users', toCol: 'id', type: 'many-to-one', onDelete: 'SET NULL' },
+  { from: 'submission_tags', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'submission_notes', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'submission_notes', fromCol: 'user_id', to: 'users', toCol: 'id', type: 'many-to-one', onDelete: 'RESTRICT' },
+  { from: 'analysis_jobs', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'static_analysis_results', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'one-to-one', onDelete: 'CASCADE' },
+  { from: 'dynamic_analysis_results', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'dynamic_analysis_results', fromCol: 'sandbox_id', to: 'sandbox_environments', toCol: 'id', type: 'many-to-one', onDelete: 'SET NULL' },
+  { from: 'network_captures', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'memory_analysis_results', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'threat_intel_results', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'iocs', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'ioc_correlations', fromCol: 'ioc_id', to: 'iocs', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'ioc_correlations', fromCol: 'related_submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'attack_techniques', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'generated_rules', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'yara_scan_results', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'yara_scan_results', fromCol: 'rule_id', to: 'yara_rules', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'detection_results', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'one-to-one', onDelete: 'CASCADE' },
+  { from: 'family_memberships', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'family_memberships', fromCol: 'family_id', to: 'malware_families', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'detonation_sessions', fromCol: 'submission_id', to: 'submissions', toCol: 'id', type: 'many-to-one', onDelete: 'CASCADE' },
+  { from: 'detonation_sessions', fromCol: 'sandbox_id', to: 'sandbox_environments', toCol: 'id', type: 'many-to-one', onDelete: 'RESTRICT' },
+];
+
+const COLOR_MAP = { teal: '#14b8a6', blue: '#3b82f6', purple: '#a855f7', amber: '#f59e0b', red: '#ef4444', green: '#22c55e', 'text-dim': '#8892a4' };
+const COLOR_DIM_MAP = { teal: 'rgba(20,184,166,0.15)', blue: 'rgba(59,130,246,0.15)', purple: 'rgba(168,85,247,0.15)', amber: 'rgba(245,158,11,0.15)', red: 'rgba(239,68,68,0.15)', green: 'rgba(34,197,94,0.15)', 'text-dim': 'rgba(136,146,164,0.1)' };
+
+// ── Pan / Zoom State ──────────────────────────────────────────────────────
+let scale = 0.65, panX = 60, panY = 40;
+let dragging = false, dragStart = { x: 0, y: 0 }, panStart = { x: 0, y: 0 };
+const canvas = document.getElementById('canvas');
+const wrapper = document.getElementById('canvas-wrapper');
+const svg = document.getElementById('connections');
+
+function applyTransform() {
+  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  document.getElementById('zoom-indicator').textContent = Math.round(scale * 100) + '%';
+  updateMinimap();
+}
+
+wrapper.addEventListener('mousedown', (e) => {
+  if (e.target.closest('.table-card')) return;
+  dragging = true;
+  dragStart = { x: e.clientX, y: e.clientY };
+  panStart = { x: panX, y: panY };
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!dragging) return;
+  panX = panStart.x + (e.clientX - dragStart.x);
+  panY = panStart.y + (e.clientY - dragStart.y);
+  applyTransform();
+});
+
+window.addEventListener('mouseup', () => { dragging = false; });
+
+wrapper.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = wrapper.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const worldX = (mx - panX) / scale;
+  const worldY = (my - panY) / scale;
+  const factor = e.deltaY < 0 ? 1.1 : 0.9;
+  const newScale = Math.max(0.15, Math.min(2.5, scale * factor));
+  panX = mx - worldX * newScale;
+  panY = my - worldY * newScale;
+  scale = newScale;
+  applyTransform();
+}, { passive: false });
+
+// ── Render Cards ──────────────────────────────────────────────────────────
+const cardElements = {};
+
+function renderCards() {
+  TABLES.forEach(table => {
+    const card = document.createElement('div');
+    card.className = 'table-card';
+    card.dataset.name = table.name;
+    card.dataset.group = table.group;
+    card.style.left = table.pos.x + 'px';
+    card.style.top = table.pos.y + 'px';
+
+    const color = COLOR_MAP[table.color];
+    const colorDim = COLOR_DIM_MAP[table.color];
+
+    card.innerHTML = `
+      <div class="card-header" style="background:${colorDim}">
+        <div class="icon" style="background:${color};color:#0f1117;">&#9638;</div>
+        <span class="table-name">${table.name}</span>
+        <span class="row-badge">${table.columns.length} cols</span>
+      </div>
+      <div class="card-body">
+        ${table.columns.map(col => {
+          let cls = 'normal', icon = '&#9679;';
+          if (col.pk) { cls = 'pk'; icon = '&#9670;'; }
+          else if (col.fk) { cls = 'fk'; icon = '&#8594;'; }
+          return `<div class="col-row ${cls}"><span class="col-icon">${icon}</span><span class="col-name">${col.name}</span><span class="col-type">${col.type}</span></div>`;
+        }).join('')}
+      </div>
+      <div class="card-footer">${table.comment}</div>
+    `;
+
+    card.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleCard(table.name);
+    });
+
+    card.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      openPanel(table.name);
+    });
+
+    canvas.appendChild(card);
+    cardElements[table.name] = card;
+  });
+}
+
+function toggleCard(name) {
+  const card = cardElements[name];
+  if (!card) return;
+  card.classList.toggle('expanded');
+  setTimeout(drawConnections, 320);
+}
+
+// ── Draw Relationships ────────────────────────────────────────────────────
+function getCardCenter(name) {
+  const card = cardElements[name];
+  if (!card) return { x: 0, y: 0 };
+  const x = parseFloat(card.style.left) + card.offsetWidth / 2;
+  const y = parseFloat(card.style.top) + card.offsetHeight / 2;
+  return { x, y };
+}
+
+function getCardEdge(fromCenter, toCenter, card) {
+  const el = card;
+  const x = parseFloat(el.style.left);
+  const y = parseFloat(el.style.top);
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const dx = toCenter.x - fromCenter.x;
+  const dy = toCenter.y - fromCenter.y;
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+  let ex, ey;
+  if (absDx * h > absDy * w) {
+    ex = dx > 0 ? x + w : x;
+    ey = cy + (dy / absDx) * (w / 2);
+  } else {
+    ey = dy > 0 ? y + h : y;
+    ex = cx + (dx / absDy) * (h / 2);
+  }
+  return { x: ex, y: ey };
+}
+
+function drawConnections() {
+  const ns = 'http://www.w3.org/2000/svg';
+  svg.innerHTML = '';
+  const W = 3200, H = 2000;
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+
+  // Arrowhead markers
+  const defs = document.createElementNS(ns, 'defs');
+  ['teal','blue','purple','amber','red','green','gray'].forEach(c => {
+    const marker = document.createElementNS(ns, 'marker');
+    marker.setAttribute('id', `arrow-${c}`);
+    marker.setAttribute('viewBox', '0 0 10 6');
+    marker.setAttribute('refX', '10');
+    marker.setAttribute('refY', '3');
+    marker.setAttribute('markerWidth', '8');
+    marker.setAttribute('markerHeight', '5');
+    marker.setAttribute('orient', 'auto');
+    const poly = document.createElementNS(ns, 'polygon');
+    poly.setAttribute('points', '0,0 10,3 0,6');
+    const colorVal = c === 'gray' ? '#4a5568' : COLOR_MAP[c] || '#4a5568';
+    poly.setAttribute('fill', colorVal);
+    marker.appendChild(poly);
+    defs.appendChild(marker);
+  });
+  svg.appendChild(defs);
+
+  const highlightedName = document.querySelector('.table-card.highlighted')?.dataset?.name;
+
+  RELATIONSHIPS.forEach(rel => {
+    const fromCard = cardElements[rel.from];
+    const toCard = cardElements[rel.to];
+    if (!fromCard || !toCard) return;
+
+    if (fromCard.classList.contains('dimmed') && toCard.classList.contains('dimmed')) return;
+
+    const fc = getCardCenter(rel.from);
+    const tc = getCardCenter(rel.to);
+    const fEdge = getCardEdge(fc, tc, fromCard);
+    const tEdge = getCardEdge(tc, fc, toCard);
+
+    const fromTable = TABLES.find(t => t.name === rel.from);
+    const colorKey = fromTable ? fromTable.color : 'text-dim';
+    const isHighlighted = highlightedName && (rel.from === highlightedName || rel.to === highlightedName);
+    const strokeColor = isHighlighted ? COLOR_MAP[colorKey] : '#2a2e3d';
+    const opacity = isHighlighted ? 0.8 : 0.35;
+    const markerColor = isHighlighted ? colorKey : 'gray';
+
+    const midX = (fEdge.x + tEdge.x) / 2;
+    const midY = (fEdge.y + tEdge.y) / 2;
+    const dx = tEdge.x - fEdge.x;
+    const dy = tEdge.y - fEdge.y;
+    const perpX = -dy * 0.15;
+    const perpY = dx * 0.15;
+
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', `M ${fEdge.x} ${fEdge.y} Q ${midX + perpX} ${midY + perpY} ${tEdge.x} ${tEdge.y}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', strokeColor);
+    path.setAttribute('stroke-width', isHighlighted ? '2' : '1');
+    path.setAttribute('stroke-opacity', opacity);
+    path.setAttribute('marker-end', `url(#arrow-${markerColor})`);
+    if (!isHighlighted) path.setAttribute('stroke-dasharray', '6,3');
+    svg.appendChild(path);
+  });
+}
+
+// ── Highlighting ──────────────────────────────────────────────────────────
+function highlightTable(name) {
+  const relatedNames = new Set([name]);
+  RELATIONSHIPS.forEach(r => {
+    if (r.from === name) relatedNames.add(r.to);
+    if (r.to === name) relatedNames.add(r.from);
+  });
+
+  Object.values(cardElements).forEach(card => {
+    if (relatedNames.has(card.dataset.name)) {
+      card.classList.remove('dimmed');
+      if (card.dataset.name === name) card.classList.add('highlighted');
+      else card.classList.remove('highlighted');
+    } else {
+      card.classList.add('dimmed');
+      card.classList.remove('highlighted');
+    }
+  });
+  drawConnections();
+}
+
+function clearHighlight() {
+  Object.values(cardElements).forEach(card => {
+    card.classList.remove('dimmed', 'highlighted');
+  });
+  drawConnections();
+}
+
+wrapper.addEventListener('click', (e) => {
+  if (!e.target.closest('.table-card')) {
+    clearHighlight();
+    closePanel();
+  }
+});
+
+// Right-click to highlight relationships
+Object.values(cardElements).forEach?.(null); // will be set after renderCards
+
+function setupContextMenus() {
+  Object.entries(cardElements).forEach(([name, card]) => {
+    card.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      highlightTable(name);
+    });
+  });
+}
+
+// ── Side Panel ────────────────────────────────────────────────────────────
+function openPanel(name) {
+  const table = TABLES.find(t => t.name === name);
+  if (!table) return;
+  const panel = document.getElementById('side-panel');
+  const content = document.getElementById('panel-content');
+
+  const rels = RELATIONSHIPS.filter(r => r.from === name || r.to === name);
+  const inRels = rels.filter(r => r.to === name).map(r => ({ table: r.from, col: r.fromCol, type: r.type, onDelete: r.onDelete }));
+  const outRels = rels.filter(r => r.from === name).map(r => ({ table: r.to, col: r.fromCol, targetCol: r.toCol, type: r.type, onDelete: r.onDelete }));
+
+  content.innerHTML = `
+    <h2>${table.name}</h2>
+    <p class="panel-subtitle">${table.comment}</p>
+
+    <div class="section">
+      <h3>Overview</h3>
+      <div class="detail-row"><span class="label">Group</span><span class="value">${table.group}</span></div>
+      <div class="detail-row"><span class="label">Columns</span><span class="value">${table.columns.length}</span></div>
+      <div class="detail-row"><span class="label">Primary Keys</span><span class="value">${table.columns.filter(c=>c.pk).map(c=>c.name).join(', ')}</span></div>
+      <div class="detail-row"><span class="label">Foreign Keys</span><span class="value">${table.columns.filter(c=>c.fk).length}</span></div>
+      <div class="detail-row"><span class="label">JSONB Columns</span><span class="value">${table.columns.filter(c=>c.type==='jsonb').length}</span></div>
+    </div>
+
+    <div class="section">
+      <h3>Columns (${table.columns.length})</h3>
+      ${table.columns.map(col => {
+        let badge = '';
+        if (col.pk) badge = '<span style="color:var(--amber);font-size:10px;margin-left:4px;">PK</span>';
+        if (col.fk) badge = `<span style="color:var(--blue);font-size:10px;margin-left:4px;">FK &rarr; ${col.fk}</span>`;
+        if (col.unique && !col.pk) badge += '<span style="color:var(--purple);font-size:10px;margin-left:4px;">UNIQUE</span>';
+        return `<div class="col-detail">
+          <div class="col-d-name">${col.name}${badge}</div>
+          <div class="col-d-type">${col.type}</div>
+          ${col.desc ? `<div class="col-d-desc">${col.desc}</div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>
+
+    ${outRels.length > 0 ? `<div class="section">
+      <h3>References (${outRels.length})</h3>
+      ${outRels.map(r => `<div class="rel-item" onclick="navigateTo('${r.table}')">
+        <span class="arrow">&rarr;</span>
+        <span>${r.col} &rarr; <strong>${r.table}</strong>.${r.targetCol}</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text-dim)">${r.type} (${r.onDelete})</span>
+      </div>`).join('')}
+    </div>` : ''}
+
+    ${inRels.length > 0 ? `<div class="section">
+      <h3>Referenced By (${inRels.length})</h3>
+      ${inRels.map(r => `<div class="rel-item" onclick="navigateTo('${r.table}')">
+        <span class="arrow">&larr;</span>
+        <span><strong>${r.table}</strong>.${r.col}</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text-dim)">${r.type} (${r.onDelete})</span>
+      </div>`).join('')}
+    </div>` : ''}
+  `;
+
+  panel.classList.add('open');
+  highlightTable(name);
+}
+
+function closePanel() {
+  document.getElementById('side-panel').classList.remove('open');
+}
+
+document.getElementById('close-panel').addEventListener('click', () => {
+  closePanel();
+  clearHighlight();
+});
+
+function navigateTo(name) {
+  const card = cardElements[name];
+  if (!card) return;
+  const x = parseFloat(card.style.left);
+  const y = parseFloat(card.style.top);
+  panX = wrapper.clientWidth / 2 - x * scale;
+  panY = wrapper.clientHeight / 2 - y * scale;
+  applyTransform();
+  openPanel(name);
+}
+
+// ── Search ────────────────────────────────────────────────────────────────
+document.getElementById('search-box').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) { clearHighlight(); return; }
+
+  const matches = new Set();
+  TABLES.forEach(t => {
+    if (t.name.includes(q)) matches.add(t.name);
+    t.columns.forEach(c => {
+      if (c.name.includes(q) || c.type.includes(q) || (c.desc && c.desc.toLowerCase().includes(q))) {
+        matches.add(t.name);
+      }
+    });
+  });
+
+  Object.values(cardElements).forEach(card => {
+    if (matches.has(card.dataset.name)) {
+      card.classList.remove('dimmed');
+      card.classList.add('highlighted');
+    } else {
+      card.classList.add('dimmed');
+      card.classList.remove('highlighted');
+    }
+  });
+  drawConnections();
+});
+
+// ── Filter Pills ──────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    const group = pill.dataset.group;
+
+    Object.values(cardElements).forEach(card => {
+      if (group === 'all' || card.dataset.group === group) {
+        card.classList.remove('dimmed');
+      } else {
+        card.classList.add('dimmed');
+      }
+      card.classList.remove('highlighted');
+    });
+    drawConnections();
+  });
+});
+
+// ── Data Flow Overlay ─────────────────────────────────────────────────────
+const FLOW_STEPS = [
+  { title: 'File Upload', desc: 'User submits file, URL, email, or container image via API Gateway', tables: ['users', 'submissions'] },
+  { title: 'Redis Storage', desc: 'File bytes stored as base64 in Redis (1-hour TTL). Submission record created in PostgreSQL.', tables: ['submissions'] },
+  { title: 'Pub/Sub Trigger', desc: 'Redis publishes to scanboy:submissions:new channel. Orchestrator picks up the job.', tables: ['analysis_jobs'] },
+  { title: 'Static Analysis', desc: 'PE/ELF/document/script parsing. Entropy, imports, signatures, strings extraction.', tables: ['static_analysis_results'] },
+  { title: 'YARA Scan', desc: '20,000+ rules matched against sample binary inside sandbox.', tables: ['yara_rules', 'yara_scan_results'] },
+  { title: 'Dynamic Analysis', desc: 'Sandbox detonation: strace, inotifywait, tcpdump, Wine for PE. Process tree + network + filesystem.', tables: ['dynamic_analysis_results', 'network_captures', 'memory_analysis_results', 'sandbox_environments', 'detonation_sessions'] },
+  { title: 'Threat Intelligence', desc: 'VT hash lookup, CVE/KEV/EPSS enrichment from local feeds. Config extraction for 55+ families.', tables: ['threat_intel_results'] },
+  { title: 'Detection Engine', desc: 'IOC extraction, MITRE ATT&CK mapping, Sigma/Suricata/Snort rule generation.', tables: ['iocs', 'ioc_correlations', 'attack_techniques', 'generated_rules', 'detection_results'] },
+  { title: 'Verdict Engine', desc: 'Evidence-chain scoring: 12 source types weighted by reliability. Classification thresholds: malicious >= 60, suspicious >= 30, benign <= 15.', tables: ['submissions'] },
+  { title: 'Report & Export', desc: 'PDF report, STIX 2.1, SBOM download. SIEM forwarding, EDR hash push, Slack/Teams alerts.', tables: ['submissions', 'malware_families', 'family_memberships'] },
+];
+
+function renderDataFlow() {
+  const overlay = document.getElementById('data-flow-overlay');
+  overlay.innerHTML = `<button onclick="document.getElementById('data-flow-overlay').classList.remove('visible')" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-dim);font-size:24px;cursor:pointer;">&times;</button>
+    <h2 style="color:var(--teal);font-size:20px;margin-bottom:24px;">Analysis Pipeline &mdash; Data Flow</h2>
+    ${FLOW_STEPS.map((step, i) => `
+      <div class="flow-step">
+        <div class="step-num">Step ${i + 1}</div>
+        <h4>${step.title}</h4>
+        <p>${step.desc}</p>
+        <div class="tables-involved">${step.tables.map(t => `<span onclick="document.getElementById('data-flow-overlay').classList.remove('visible');setTimeout(()=>navigateTo('${t}'),200)" style="cursor:pointer">${t}</span>`).join('')}</div>
+      </div>
+      ${i < FLOW_STEPS.length - 1 ? '<div class="flow-arrow"></div>' : ''}
+    `).join('')}
+  `;
+}
+
+document.getElementById('btn-data-flow').addEventListener('click', () => {
+  const overlay = document.getElementById('data-flow-overlay');
+  overlay.classList.toggle('visible');
+});
+
+// ── Reset View ────────────────────────────────────────────────────────────
+document.getElementById('btn-reset-view').addEventListener('click', () => {
+  scale = 0.65; panX = 60; panY = 40;
+  applyTransform();
+  clearHighlight();
+  closePanel();
+  document.getElementById('search-box').value = '';
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  document.querySelector('.filter-pill[data-group="all"]').classList.add('active');
+});
+
+// ── Minimap ───────────────────────────────────────────────────────────────
+function updateMinimap() {
+  const mc = document.getElementById('minimap-canvas');
+  const ctx = mc.getContext('2d');
+  const mw = 200, mh = 140;
+  mc.width = mw; mc.height = mh;
+  ctx.clearRect(0, 0, mw, mh);
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  TABLES.forEach(t => {
+    const card = cardElements[t.name];
+    if (!card) return;
+    minX = Math.min(minX, t.pos.x);
+    minY = Math.min(minY, t.pos.y);
+    maxX = Math.max(maxX, t.pos.x + card.offsetWidth);
+    maxY = Math.max(maxY, t.pos.y + card.offsetHeight);
+  });
+
+  const pad = 40;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  const worldW = maxX - minX;
+  const worldH = maxY - minY;
+  const scaleM = Math.min(mw / worldW, mh / worldH);
+
+  TABLES.forEach(t => {
+    const card = cardElements[t.name];
+    if (!card) return;
+    const rx = (t.pos.x - minX) * scaleM;
+    const ry = (t.pos.y - minY) * scaleM;
+    const rw = card.offsetWidth * scaleM;
+    const rh = card.offsetHeight * scaleM;
+    ctx.fillStyle = card.classList.contains('dimmed') ? '#1a1d27' : (COLOR_MAP[t.color] || '#888');
+    ctx.globalAlpha = card.classList.contains('dimmed') ? 0.2 : 0.6;
+    ctx.fillRect(rx, ry, Math.max(rw, 2), Math.max(rh, 2));
+  });
+  ctx.globalAlpha = 1;
+
+  const vp = document.getElementById('minimap-viewport');
+  const vpLeft = (-panX / scale - minX) * scaleM;
+  const vpTop = (-panY / scale - minY + 52 / scale) * scaleM;
+  const vpW = (wrapper.clientWidth / scale) * scaleM;
+  const vpH = ((wrapper.clientHeight - 52) / scale) * scaleM;
+  vp.style.left = Math.max(0, vpLeft) + 'px';
+  vp.style.top = Math.max(0, vpTop) + 'px';
+  vp.style.width = Math.min(vpW, mw) + 'px';
+  vp.style.height = Math.min(vpH, mh) + 'px';
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closePanel();
+    clearHighlight();
+    document.getElementById('data-flow-overlay').classList.remove('visible');
+    document.getElementById('search-box').value = '';
+  }
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    document.getElementById('search-box').focus();
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+renderCards();
+setupContextMenus();
+renderDataFlow();
+applyTransform();
+setTimeout(drawConnections, 100);
+setTimeout(drawConnections, 500);
+window.addEventListener('resize', () => { drawConnections(); updateMinimap(); });
+</script>
+</body>
+</html>

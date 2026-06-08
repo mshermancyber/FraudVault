@@ -1,0 +1,909 @@
+openapi: 3.1.0
+info:
+  title: FraudVault API
+  description: Enterprise Malware Detonation and Threat Analysis Platform
+  version: 0.1.0
+  contact:
+    name: FraudVault Security Team
+
+servers:
+  - url: https://localhost/api/v1
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    ApiResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        data: {}
+        error:
+          type: string
+        message:
+          type: string
+
+    PaginatedResponse:
+      type: object
+      required: [items, total, page, pageSize]
+      properties:
+        items:
+          type: array
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    UserRole:
+      type: string
+      enum: [admin, malware_researcher, threat_hunter, soc_analyst, incident_responder, read_only]
+
+    ThreatLevel:
+      type: string
+      enum: [informational, low, medium, high, critical]
+
+    SubmissionStatus:
+      type: string
+      enum: [submitted, queued, analyzing, review, escalated, confirmed_malicious, benign, closed]
+
+    SubmissionType:
+      type: string
+      enum: [file, url, email, container]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          type: string
+          enum: [active, disabled, locked]
+        mfaEnabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    Submission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        fileSize:
+          type: integer
+        fileType:
+          type: string
+        mimeType:
+          type: string
+        md5:
+          type: string
+        sha1:
+          type: string
+        sha256:
+          type: string
+        sha512:
+          type: string
+        tlsh:
+          type: string
+        ssdeep:
+          type: string
+        submissionType:
+          $ref: '#/components/schemas/SubmissionType'
+        sourceUrl:
+          type: string
+        status:
+          $ref: '#/components/schemas/SubmissionStatus'
+        threatScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        threatLevel:
+          $ref: '#/components/schemas/ThreatLevel'
+        assignedAnalystId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SubmissionDetail:
+      allOf:
+        - $ref: '#/components/schemas/Submission'
+        - type: object
+          properties:
+            staticAnalysis:
+              type: object
+            dynamicAnalysis:
+              type: object
+            threatIntel:
+              type: array
+              items:
+                $ref: '#/components/schemas/ThreatIntelResult'
+            iocs:
+              type: array
+              items:
+                $ref: '#/components/schemas/IOC'
+            attackTechniques:
+              type: array
+              items:
+                $ref: '#/components/schemas/AttackTechnique'
+            notes:
+              type: array
+              items:
+                $ref: '#/components/schemas/SubmissionNote'
+
+    AnalysisJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        submissionId:
+          type: string
+          format: uuid
+        jobType:
+          type: string
+          enum: [static, dynamic, threat_intel, yara, network, memory]
+        status:
+          type: string
+          enum: [pending, running, completed, failed, timeout]
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        errorMessage:
+          type: string
+
+    ThreatIntelResult:
+      type: object
+      properties:
+        provider:
+          type: string
+        verdict:
+          type: string
+        detectionCount:
+          type: integer
+        totalEngines:
+          type: integer
+        malwareFamily:
+          type: string
+        firstSeen:
+          type: string
+          format: date-time
+        lastSeen:
+          type: string
+          format: date-time
+
+    IOC:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [domain, url, ip, hash_md5, hash_sha1, hash_sha256, registry_key, file_path, mutex, service, certificate, email]
+        value:
+          type: string
+        context:
+          type: string
+        confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    AttackTechnique:
+      type: object
+      properties:
+        tacticId:
+          type: string
+        techniqueId:
+          type: string
+        subTechniqueId:
+          type: string
+        evidence:
+          type: object
+        confidence:
+          type: integer
+
+    SubmissionNote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        username:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    YaraRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        content:
+          type: string
+        category:
+          type: string
+        author:
+          type: string
+        version:
+          type: integer
+        isActive:
+          type: boolean
+        performanceMs:
+          type: number
+        matchCount:
+          type: integer
+
+    SearchResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        sha256:
+          type: string
+        threatLevel:
+          $ref: '#/components/schemas/ThreatLevel'
+        status:
+          $ref: '#/components/schemas/SubmissionStatus'
+        createdAt:
+          type: string
+          format: date-time
+        matchField:
+          type: string
+
+    DashboardStats:
+      type: object
+      properties:
+        totalSubmissions:
+          type: integer
+        activeAnalyses:
+          type: integer
+        threatsDetected:
+          type: integer
+        pendingReview:
+          type: integer
+        recentSubmissions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              filename:
+                type: string
+              threatLevel:
+                type: string
+              status:
+                type: string
+              createdAt:
+                type: string
+
+    SandboxEnvironment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        osType:
+          type: string
+        osVersion:
+          type: string
+        status:
+          type: string
+          enum: [available, in_use, provisioning, destroying, error]
+        lastUsedAt:
+          type: string
+          format: date-time
+
+paths:
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout current session
+      responses:
+        '200':
+          description: Logout successful
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh JWT token
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          token:
+                            type: string
+
+  /dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard statistics
+      responses:
+        '200':
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DashboardStats'
+
+  /submissions:
+    get:
+      tags: [Submissions]
+      summary: List submissions
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/SubmissionStatus'
+        - name: threatLevel
+          in: query
+          schema:
+            $ref: '#/components/schemas/ThreatLevel'
+      responses:
+        '200':
+          description: Paginated submissions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/PaginatedResponse'
+                          - type: object
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Submission'
+
+    post:
+      tags: [Submissions]
+      summary: Submit URL for analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, url]
+              properties:
+                type:
+                  type: string
+                  const: url
+                url:
+                  type: string
+                  format: uri
+      responses:
+        '201':
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Submission'
+
+  /submissions/upload:
+    post:
+      tags: [Submissions]
+      summary: Upload file for analysis
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, type]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                type:
+                  $ref: '#/components/schemas/SubmissionType'
+      responses:
+        '201':
+          description: File uploaded and submission created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Submission'
+
+  /submissions/{id}:
+    get:
+      tags: [Submissions]
+      summary: Get submission details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Submission details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SubmissionDetail'
+        '404':
+          description: Submission not found
+
+  /submissions/{id}/status:
+    patch:
+      tags: [Submissions]
+      summary: Update submission status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  $ref: '#/components/schemas/SubmissionStatus'
+      responses:
+        '200':
+          description: Status updated
+
+  /submissions/{id}/notes:
+    post:
+      tags: [Submissions]
+      summary: Add note to submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Note added
+
+  /submissions/{id}/jobs:
+    get:
+      tags: [Analysis]
+      summary: List analysis jobs for submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Analysis jobs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AnalysisJob'
+
+  /search:
+    get:
+      tags: [Search]
+      summary: Search submissions and IOCs
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: field
+          in: query
+          schema:
+            type: string
+            enum: [all, hash, domain, url, ip, filename, malware_family, attack_technique, registry_key]
+            default: all
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SearchResult'
+
+  /attack-matrix:
+    get:
+      tags: [Detection]
+      summary: Get ATT&CK matrix overview
+      responses:
+        '200':
+          description: ATT&CK matrix data
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            techniques:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  name:
+                                    type: string
+                                  count:
+                                    type: integer
+
+  /reports/{submissionId}:
+    get:
+      tags: [Reports]
+      summary: Get analysis report
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Full analysis report
+
+  /reports/{submissionId}/export/{format}:
+    get:
+      tags: [Reports]
+      summary: Export report in specified format
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: format
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [json, csv, stix]
+      responses:
+        '200':
+          description: Exported report
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+
+    post:
+      tags: [Admin]
+      summary: Create new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, username, password, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                role:
+                  $ref: '#/components/schemas/UserRole'
+      responses:
+        '201':
+          description: User created
+
+  /admin/users/{id}/disable:
+    post:
+      tags: [Admin]
+      summary: Disable user account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User disabled
+
+  /admin/yara-rules:
+    get:
+      tags: [Admin]
+      summary: List YARA rules
+      responses:
+        '200':
+          description: YARA rules list
+    post:
+      tags: [Admin]
+      summary: Upload YARA rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, content]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                content:
+                  type: string
+                category:
+                  type: string
+      responses:
+        '201':
+          description: YARA rule created
+
+  /admin/sandboxes:
+    get:
+      tags: [Admin]
+      summary: List sandbox environments
+      responses:
+        '200':
+          description: Sandbox list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SandboxEnvironment'
+
+  /health:
+    get:
+      tags: [System]
+      summary: System health check
+      security: []
+      responses:
+        '200':
+          description: System healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  services:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  uptime:
+                    type: number
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Dashboard
+    description: Dashboard statistics and overview
+  - name: Submissions
+    description: Malware sample submission and management
+  - name: Analysis
+    description: Analysis job management
+  - name: Search
+    description: Search and correlation
+  - name: Detection
+    description: ATT&CK mapping and detection engineering
+  - name: Reports
+    description: Report generation and export
+  - name: Admin
+    description: System administration
+  - name: System
+    description: System health and telemetry
