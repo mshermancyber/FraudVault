@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "scanboy.fullname" . }}-nginx
+  labels:
+    {{- $ctx := merge (dict "component" "nginx") . }}
+    {{- include "scanboy.serviceLabels" $ctx | nindent 4 }}
+spec:
+  replicas: {{ .Values.nginx.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "scanboy.serviceSelectorLabels" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "scanboy.serviceSelectorLabels" $ctx | nindent 8 }}
+    spec:
+      containers:
+        - name: nginx
+          image: "{{ .Values.nginx.image.repository }}:{{ .Values.nginx.image.tag }}"
+          ports:
+            - containerPort: 80
+              protocol: TCP
+            - containerPort: 443
+              protocol: TCP
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            {{- if .Values.nginx.tls.enabled }}
+            - name: tls-certs
+              mountPath: /etc/nginx/certs
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.nginx.resources | nindent 12 }}
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "scanboy.fullname" . }}-nginx-config
+        {{- if .Values.nginx.tls.enabled }}
+        - name: tls-certs
+          secret:
+            secretName: {{ .Values.nginx.tls.secretName }}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "scanboy.fullname" . }}-nginx
+  labels:
+    {{- include "scanboy.serviceLabels" $ctx | nindent 4 }}
+spec:
+  type: {{ .Values.nginx.service.type }}
+  ports:
+    - port: {{ .Values.nginx.service.port }}
+      targetPort: 443
+      protocol: TCP
+  selector:
+    {{- include "scanboy.serviceSelectorLabels" $ctx | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "scanboy.fullname" . }}-nginx-config
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+    events { worker_connections 1024; }
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+      sendfile on;
+      keepalive_timeout 65;
+      client_max_body_size 500m;
+      server_tokens off;
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      server {
+        listen 80;
+        server_name _;
+        return 301 https://$host$request_uri;
+      }
+      server {
+        listen 443 ssl;
+        ssl_certificate /etc/nginx/certs/tls.crt;
+        ssl_certificate_key /etc/nginx/certs/tls.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        location /api/ {
+          proxy_pass http://{{ include "scanboy.fullname" . }}-api-gateway:3000/api/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location / {
+          proxy_pass http://{{ include "scanboy.fullname" . }}-frontend:5173;
+          proxy_set_header Host $host;
+        }
+      }
+    }

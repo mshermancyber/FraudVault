@@ -1,0 +1,238 @@
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+nginx:
+  replicaCount: 2
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+  service:
+    type: LoadBalancer
+    port: 443
+  tls:
+    enabled: true
+    secretName: scanboy-tls
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+apiGateway:
+  replicaCount: 2
+  image:
+    repository: scanboy/api-gateway
+    tag: latest
+  service:
+    port: 3000
+  env:
+    jwtExpiry: "8h"
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+orchestrator:
+  replicaCount: 2
+  image:
+    repository: scanboy/orchestrator
+    tag: latest
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+staticAnalysis:
+  replicaCount: 2
+  image:
+    repository: scanboy/static-analysis
+    tag: latest
+  resources:
+    limits:
+      cpu: "2"
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+threatIntel:
+  replicaCount: 1
+  image:
+    repository: scanboy/threat-intel
+    tag: latest
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+detectionEngine:
+  replicaCount: 2
+  image:
+    repository: scanboy/detection-engine
+    tag: latest
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+search:
+  replicaCount: 1
+  image:
+    repository: scanboy/search
+    tag: latest
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+reporting:
+  replicaCount: 1
+  image:
+    repository: scanboy/reporting
+    tag: latest
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+telemetry:
+  replicaCount: 1
+  image:
+    repository: scanboy/telemetry
+    tag: latest
+  resources:
+    limits:
+      cpu: 250m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: scanboy/frontend
+    tag: latest
+  service:
+    port: 5173
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+postgresql:
+  enabled: true
+  auth:
+    database: scanboy
+    username: scanboy
+    existingSecret: scanboy-db-secret
+  primary:
+    persistence:
+      size: 50Gi
+    resources:
+      limits:
+        cpu: "2"
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      size: 5Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+minio:
+  enabled: true
+  auth:
+    existingSecret: scanboy-minio-secret
+  persistence:
+    size: 100Gi
+  resources:
+    limits:
+      cpu: "1"
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+elasticsearch:
+  enabled: true
+  replicas: 1
+  minimumMasterNodes: 1
+  esJavaOpts: "-Xms1g -Xmx1g"
+  resources:
+    limits:
+      cpu: "2"
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  volumeClaimTemplate:
+    resources:
+      requests:
+        storage: 50Gi
+
+sandboxManager:
+  replicaCount: 1
+  image:
+    repository: scanboy/sandbox-manager
+    tag: latest
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+dynamicAnalysis:
+  replicaCount: 1
+  image:
+    repository: scanboy/dynamic-analysis
+    tag: latest
+  resources:
+    limits:
+      cpu: "2"
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+monitoring:
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: false

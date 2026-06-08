@@ -1,0 +1,14 @@
+apiVersion: v2
+name: scanboy
+description: Enterprise Malware Detonation and Threat Analysis Platform
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - malware-analysis
+  - security
+  - threat-intelligence
+  - sandbox
+  - detonation
+maintainers:
+  - name: ScanBoy Security Team
