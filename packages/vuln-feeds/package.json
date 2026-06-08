@@ -1,0 +1,29 @@
+{
+  "name": "@scanboy/vuln-feeds",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ScanBoy Offline Vulnerability Feeds - KEV, EPSS, NVD, OSV mirror with batch lookup",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.0",
+    "node-cron": "^3.0.3",
+    "pino": "^9.4.0",
+    "pino-http": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.5.0",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
