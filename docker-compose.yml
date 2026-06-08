@@ -1,0 +1,361 @@
+x-db-env: &db-env
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: scanboy
+  POSTGRES_USER: scanboy
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
+  NODE_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY must be set in .env}
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - frontend-net
+      - api-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+    environment:
+      VITE_API_URL: /api
+    networks:
+      - frontend-net
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: packages/api-gateway/Dockerfile
+    environment:
+      <<: *db-env
+      API_PORT: "3000"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET must be set in .env}
+      JWT_EXPIRY: ${JWT_EXPIRY:-15m}
+      JWT_REFRESH_EXPIRY: 7d
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - api-net
+      - backend-net
+    restart: unless-stopped
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: packages/orchestrator/Dockerfile
+    environment:
+      <<: *db-env
+      VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set in .env}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY must be set in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  static-analysis:
+    build:
+      context: .
+      dockerfile: packages/static-analysis/Dockerfile
+    environment:
+      <<: *db-env
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set in .env}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY must be set in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  threat-intel:
+    build:
+      context: .
+      dockerfile: packages/threat-intel/Dockerfile
+    environment:
+      <<: *db-env
+      VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
+      MALWAREBAZAAR_API_KEY: ${MALWAREBAZAAR_API_KEY:-}
+      OTX_API_KEY: ${OTX_API_KEY:-}
+      ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
+      HYBRID_ANALYSIS_API_KEY: ${HYBRID_ANALYSIS_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-net
+      - sandbox-net
+    restart: unless-stopped
+
+  detection-engine:
+    build:
+      context: .
+      dockerfile: packages/detection-engine/Dockerfile
+    environment:
+      <<: *db-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  search:
+    build:
+      context: .
+      dockerfile: packages/search/Dockerfile
+    environment:
+      <<: *db-env
+      ELASTICSEARCH_NODE: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:?ELASTICSEARCH_PASSWORD must be set in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  reporting:
+    build:
+      context: .
+      dockerfile: packages/reporting/Dockerfile
+    environment:
+      <<: *db-env
+      OPENAI_COMPATIBLE_URL: ${OPENAI_COMPATIBLE_URL:-}
+      OPENAI_COMPATIBLE_MODEL: ${OPENAI_COMPATIBLE_MODEL:-llama3}
+      OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-not-needed}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  telemetry:
+    build:
+      context: .
+      dockerfile: packages/telemetry/Dockerfile
+    environment:
+      <<: *db-env
+      ELASTICSEARCH_NODE: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:?ELASTICSEARCH_PASSWORD must be set in .env}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  sandbox-manager:
+    build:
+      context: .
+      dockerfile: packages/sandbox-manager/Dockerfile
+    environment:
+      <<: *db-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - backend-net
+      - sandbox-net
+    restart: unless-stopped
+
+  vuln-feeds:
+    build:
+      context: .
+      dockerfile: packages/vuln-feeds/Dockerfile
+    environment:
+      <<: *db-env
+      DB_PATH: /feeds/feeds.db
+      OSV_CACHE_DIR: /feeds/osv-cache
+    volumes:
+      - ./techdebtdata:/feeds
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  dynamic-analysis:
+    build:
+      context: .
+      dockerfile: packages/dynamic-analysis/Dockerfile
+    environment:
+      <<: *db-env
+      SANDBOX_ALLOW_NETWORK: ${SANDBOX_ALLOW_NETWORK:-false}
+      SANDBOX_MANAGER_URL: http://sandbox-manager:3008
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set in .env}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY must be set in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  scanboy-sandbox:
+    build:
+      context: .
+      dockerfile: packages/dynamic-analysis/Dockerfile.sandbox
+    image: scanboy-sandbox:latest
+    profiles:
+      - build-only
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: scanboy
+      POSTGRES_USER: scanboy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docs/database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scanboy -d scanboy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a $$REDIS_PASSWORD ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY must be set in .env}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      ELASTIC_PASSWORD: ${ELASTICSEARCH_PASSWORD:?ELASTICSEARCH_PASSWORD must be set in .env}
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -u elastic:$$ELASTIC_PASSWORD http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles:
+      - ai
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  elasticsearch-data:
+  ollama-data:
+
+networks:
+  frontend-net:
+    driver: bridge
+  api-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+  sandbox-net:
+    driver: bridge
+    internal: true
