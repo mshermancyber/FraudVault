@@ -1,0 +1,46 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (not needed in Docker builds)
+docs/
+*.md
+LICENSE
+
+# Data directories
+workinggood/
+archive/
+techdebtdata/
+
+# Build artifacts
+*.tar
+*.tar.gz
+*.sql
+
+# Environment
+.env
+.env.example
+.envbackup
+
+# IDE
+.idea/
+.vscode/
+
+# Testing
+coverage/
+vitest.config.ts
+
+# Deployment
+deploy/
+nginx/
+sandbox-config/
+scripts/
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
