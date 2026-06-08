@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.envbackup
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+techdebtdata/
+*.db
+*.db-wal
+*.db-shm
+
+# Archive/Backup
+archive/
+workinggood/
+
+# TLS certificates (generate with nginx/generate-certs.sh)
+nginx/certs/*.crt
+nginx/certs/*.key
+
+# Docker
+docker-compose.override.yml
+
+# Test artifacts
+coverage/
+*.tar
+*.tar.gz
+
+# Claude Code
+.claude/
+CLAUDE.md
