@@ -1,0 +1,40 @@
+# Auto detect text files and normalize line endings
+* text=auto
+
+# Force LF for shell scripts
+*.sh text eol=lf
+
+# Force LF for TypeScript/JavaScript
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+
+# Force LF for config files
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.sql text eol=lf
+
+# Binary files
+*.tar binary
+*.tar.gz binary
+*.gz binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# Docker
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+.dockerignore text eol=lf
+
+# Lock files - don't diff
+package-lock.json -diff
