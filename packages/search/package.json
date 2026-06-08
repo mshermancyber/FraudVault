@@ -1,0 +1,29 @@
+{
+  "name": "@scanboy/search",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ScanBoy Search - full-text and IOC search across submissions",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.15.0",
+    "@scanboy/shared": "*",
+    "express": "^4.21.0",
+    "ioredis": "^5.4.0",
+    "pg": "^8.13.0",
+    "pino": "^9.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.5.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
