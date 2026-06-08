@@ -1,0 +1,28 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
+  strace inotify-tools tcpdump procps net-tools file \
+  python3 \
+  unzip p7zip-full unrar-free \
+  curl ca-certificates \
+  wine wine64 \
+  binutils xxd \
+  yara upx-ucl \
+  && rm -rf /var/lib/apt/lists/* \
+  && curl -sL "https://github.com/anchore/syft/releases/download/v1.22.0/syft_1.22.0_linux_amd64.tar.gz" | tar xz -C /usr/local/bin syft \
+  && chmod +x /usr/local/bin/syft \
+  && rm -f /usr/bin/nsenter /bin/mount /bin/umount /usr/bin/mount /usr/bin/umount 2>/dev/null || true \
+  && chmod u-s /usr/bin/su /usr/bin/passwd /usr/bin/chfn /usr/bin/chsh /usr/bin/gpasswd /usr/bin/newgrp 2>/dev/null || true
+
+RUN useradd -m -s /bin/bash sandbox
+RUN mkdir -p /home/sandbox /tmp/scanboy-logs /opt/scanboy && \
+    chown sandbox:sandbox /home/sandbox /tmp/scanboy-logs /opt/scanboy
+
+WORKDIR /home/sandbox
+USER sandbox
+
+RUN wineboot --init 2>/dev/null || true
+
+CMD ["/bin/bash"]
